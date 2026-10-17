@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0e17">
+<title>Mufa Circuit — Connect the Circuit. Solve the Challenge.</title>
+<link rel="stylesheet" href="css/themes.css">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/board.css">
+<link rel="stylesheet" href="css/animations.css">
+</head>
+<body>
+<main id="app">
+
+  <!-- MAIN MENU -->
+  <section id="screen-menu" class="screen" aria-labelledby="logo">
+    <div class="menu-card">
+      <svg class="logo-mark" viewBox="0 0 120 60" aria-hidden="true">
+        <path class="lm-wire" d="M6 44H34V16H62V44H90V16H114"/>
+        <circle class="lm-src" cx="6" cy="44" r="6"/>
+        <circle class="lm-tgt" cx="114" cy="16" r="6"/>
+      </svg>
+      <h1 id="logo" class="logo"><span>MUFA</span> CIRCUIT</h1>
+      <p class="tagline">Connect the Circuit. Solve the Challenge.</p>
+      <nav class="menu-list" aria-label="Menu utama">
+        <button class="btn primary big" data-action="play">▶ Play</button>
+        <button class="btn big" data-action="daily">☀ Daily Circuit</button>
+        <button class="btn big" data-action="achievements">🏆 Achievements</button>
+        <button class="btn big" data-action="stats">📊 Statistics</button>
+        <button class="btn big" data-action="settings">⚙ Settings</button>
+      </nav>
+      <p class="menu-foot" id="menu-foot"></p>
+    </div>
+  </section>
+
+  <!-- MODE SELECTION -->
+  <section id="screen-modes" class="screen" hidden aria-labelledby="modes-title">
+    <header class="top"><button class="btn ghost" data-action="to-menu">← Menu</button><h2 id="modes-title">Pilih Mode</h2><span></span></header>
+    <div id="mode-grid" class="mode-grid"></div>
+  </section>
+
+  <!-- LEVEL SELECT -->
+  <section id="screen-levels" class="screen" hidden aria-labelledby="levels-title">
+    <header class="top"><button class="btn ghost" data-action="to-modes">← Mode</button><h2 id="levels-title">Pilih Level</h2><span></span></header>
+    <p id="levels-desc" class="muted center"></p>
+    <label class="check"><input type="checkbox" id="practice-toggle"> Mode latihan (tanpa skor &amp; progres)</label>
+    <div id="level-grid" class="level-grid"></div>
+  </section>
+
+  <!-- GAMEPLAY -->
+  <section id="screen-game" class="screen" hidden aria-label="Permainan">
+    <header class="top">
+      <button class="btn ghost" data-action="leave">← Keluar</button>
+      <div class="game-title"><strong id="g-mode"></strong><span id="g-level" class="muted"></span></div>
+      <button class="btn ghost" data-action="pause" id="btn-pause" aria-label="Jeda (Esc)">⏸</button>
+    </header>
+    <div class="hud" aria-live="off">
+      <div class="chip"><small>Gerakan</small><b id="h-moves">0</b></div>
+      <div class="chip"><small>Ideal ≤</small><b id="h-ideal">0</b></div>
+      <div class="chip"><small>Waktu</small><b id="h-time">0:00</b></div>
+      <div class="chip"><small>Hint</small><b id="h-hints">0</b></div>
+    </div>
+    <div class="board-wrap"><div id="board" class="board" role="group" aria-label="Papan sirkuit"></div></div>
+    <p id="g-status" class="status" aria-live="polite"></p>
+    <div class="controls">
+      <button class="btn" data-action="hint" title="Hint (H)">💡 Hint</button>
+      <button class="btn" data-action="undo" title="Undo (Z)">↶ Undo</button>
+      <button class="btn" data-action="restart" title="Restart (R)">⟲ Restart</button>
+    </div>
+    <button class="btn primary big test" data-action="test" title="Enter">TEST CIRCUIT</button>
+  </section>
+
+  <!-- RESULT -->
+  <section id="screen-result" class="screen" hidden aria-labelledby="r-title">
+    <div class="result-card">
+      <h2 id="r-title">Sirkuit Terhubung!</h2>
+      <div id="r-stars" class="stars" aria-live="polite"></div>
+      <dl class="result-grid" id="r-grid"></dl>
+      <div id="r-ach" class="r-ach"></div>
+      <div class="result-actions">
+        <button class="btn primary" data-action="next" id="r-next">Next Level →</button>
+        <button class="btn" data-action="retry">⟲ Retry</button>
+        <button class="btn ghost" data-action="to-levels">Daftar Level</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACHIEVEMENTS -->
+  <section id="screen-achievements" class="screen" hidden aria-labelledby="ach-title">
+    <header class="top"><button class="btn ghost" data-action="to-menu">← Menu</button><h2 id="ach-title">Achievements</h2><span></span></header>
+    <p id="ach-summary" class="muted center"></p>
+    <ul id="ach-list" class="ach-list"></ul>
+  </section>
+
+  <!-- STATS -->
+  <section id="screen-stats" class="screen" hidden aria-labelledby="st-title">
+    <header class="top"><button class="btn ghost" data-action="to-menu">← Menu</button><h2 id="st-title">Statistik</h2><span></span></header>
+    <div id="stats-grid" class="stats-grid"></div>
+    <h3 class="center">Rekor skor per mode</h3>
+    <div id="stats-records" class="records"></div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="screen-settings" class="screen" hidden aria-labelledby="se-title">
+    <header class="top"><button class="btn ghost" data-action="to-menu">← Menu</button><h2 id="se-title">Settings</h2><span></span></header>
+    <div class="settings">
+      <label class="check"><input type="checkbox" id="set-motion"> Kurangi animasi</label>
+      <p class="muted">Data tersimpan hanya di perangkat/browser ini (localStorage). Game ini tidak memakai suara, internet, atau akun.</p>
+      <button class="btn danger" data-action="reset-data">Hapus semua progres</button>
+    </div>
+  </section>
+</main>
+
+<div id="modal-root"></div>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="js/config.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/components.js"></script>
+<script src="js/circuit-engine.js"></script>
+<script src="js/solver.js"></script>
+<script src="js/level-generator.js"></script>
+<script src="data/levels-classic.js"></script>
+<script src="js/level-loader.js"></script>
+<script src="js/scoring.js"></script>
+<script src="js/achievements.js"></script>
+<script src="js/state.js"></script>
+<script src="js/board.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/input.js"></script>
+<script src="modes/classic.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

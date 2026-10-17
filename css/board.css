@@ -1,0 +1,44 @@
+.board-wrap { width: 100%; display: flex; justify-content: center; }
+.board {
+  --size: min(94vw, calc(100dvh - 330px), 560px);
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 4), 1fr);
+  grid-template-rows: repeat(var(--rows, 4), 1fr);
+  gap: 3px;
+  width: max(var(--size), 220px);
+  aspect-ratio: 1;
+  padding: 6px;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  user-select: none;
+}
+.board.paused { filter: blur(8px); pointer-events: none; }
+
+.tile {
+  position: relative; padding: 0; border: 0; border-radius: 8px;
+  background: var(--tile-bg); overflow: hidden; min-width: 0; min-height: 0;
+}
+.tile.locked { background: var(--tile-locked); cursor: default; }
+.tile.type-empty, .tile.type-blocker { cursor: default; }
+.tile svg { position: absolute; inset: 0; width: 100%; height: 100%; transition: transform .22s ease; }
+.board.instant .tile svg { transition: none; }
+
+.wire { fill: none; stroke: var(--wire-off); stroke-width: 12; stroke-linecap: butt; stroke-linejoin: round; transition: stroke .25s; }
+.hub { fill: var(--wire-off); transition: fill .25s; }
+.node { transition: fill .25s, stroke .25s; }
+.node.src { fill: var(--yellow); stroke: #fff6; stroke-width: 4; }
+.type-source .wire { stroke: var(--yellow); }
+.node.tgt { fill: var(--tile-bg); stroke: var(--wire-off); stroke-width: 8; }
+.tgt-core { fill: var(--wire-off); transition: fill .25s; }
+.blk { fill: #2a1520; stroke: #7f1d1d; stroke-width: 4; }
+.blk-x { stroke: var(--danger); stroke-width: 7; stroke-linecap: round; fill: none; }
+.dot { fill: #2c3760; }
+
+.tile.on .wire { stroke: var(--energy); filter: drop-shadow(0 0 4px var(--energy)); transition-delay: var(--d, 0ms); }
+.tile.on .hub { fill: var(--energy); transition-delay: var(--d, 0ms); }
+.tile.on .node.tgt { stroke: var(--green); fill: #12351f; transition-delay: var(--d, 0ms); }
+.tile.on .tgt-core { fill: var(--green); transition-delay: var(--d, 0ms); }
+
+.tile.hint { box-shadow: inset 0 0 0 3px var(--yellow); }
+.tile.err { box-shadow: inset 0 0 0 3px var(--danger); }
