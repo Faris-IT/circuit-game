@@ -1,7 +1,20 @@
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; }
+html { min-height: 100%; background: var(--bg); }
+body { margin: 0; min-height: 100%; background: transparent; }
+/* Latar ditempel ke viewport (fixed) agar tetap menutupi layar saat halaman di-scroll. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(1000px 640px at 50% -8%, rgba(34, 52, 120, .75) 0%, transparent 70%),
+    radial-gradient(760px 520px at 100% 100%, rgba(109, 40, 217, .16) 0%, transparent 70%),
+    radial-gradient(640px 460px at 0% 100%, rgba(34, 211, 238, .08) 0%, transparent 70%),
+    var(--bg);
+}
 body {
-  background: radial-gradient(1200px 700px at 50% -10%, #1a2350 0%, var(--bg) 60%);
   color: var(--text);
   font-family: var(--font);
   line-height: 1.45;

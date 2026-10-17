@@ -49,7 +49,8 @@
     UI.setGameHeader(cfg.name, (practice ? 'Latihan · ' : '') + 'Level ' + (index + 1) + ' · ' + s.size + '×' + s.size);
     BoardView.mount($('board'), s.board, onTile);
     UI.setHud(s);
-    UI.status('Putar ubin, lalu tekan TEST CIRCUIT.');
+    $('btn-undo').disabled = !s.rules.undo;
+    UI.status(s.limit ? 'Batas ' + s.limit + ' gerakan. Putar ubin, lalu tekan TEST CIRCUIT.' : 'Putar ubin, lalu tekan TEST CIRCUIT.');
     UI.show('game');
     if (!practice) {
       const st = Storage.data.stats;
@@ -67,7 +68,7 @@
 
   function onTile(idx) {
     const s = Game.s;
-    if (!s || s.solved || s.paused) return;
+    if (!s || s.solved || s.over || s.paused) return;
     const t = s.board.tiles[idx];
     if (t.locked) {
       UI.status(t.type === 'cross' ? 'Persimpangan menghubungkan 4 arah, tidak perlu diputar.' : 'Ubin ini terkunci.');
@@ -79,17 +80,49 @@
       if (!s.practice) Storage.data.stats.totalMoves++;
       UI.setHud(s);
       UI.status('');
+      afterMove();
     }
+  }
+
+  // Mode dengan batas gerakan: peringatan di sisa 2 gerakan, uji otomatis saat gerakan habis.
+  function afterMove() {
+    const s = Game.s;
+    if (!s.limit || s.solved) return;
+    const left = s.limit - s.moves;
+    if (left > 0) { if (left <= 2) UI.status('Sisa ' + left + ' gerakan!', 'bad'); return; }
+    const trace = Game.test();
+    BoardView.flow(trace, reduce());
+    if (trace.solved) { winFlow(trace); return; }
+    s.over = true; s.running = false;
+    BoardView.markErrors(trace.leaks);
+    UI.status('Gerakan habis!', 'bad');
+    flowTimer = setTimeout(showLoss, reduce() ? 300 : 900);
+  }
+
+  function showLoss() {
+    const s = Game.s;
+    UI.modal({
+      title: 'Gerakan habis',
+      body: 'Sirkuit belum tersambung sebelum batas ' + s.limit + ' gerakan terpakai. Coba rencanakan jalurnya lebih dulu.',
+      cancelable: false,
+      buttons: [
+        { label: 'Daftar level', onClick: toLevels },
+        { label: 'Coba lagi', kind: 'primary', onClick: () => startLevel(s.modeId, s.index) }
+      ]
+    });
   }
 
   function doUndo() {
     if (!inGame() || UI.modalOpen()) return;
+    const s = Game.s;
+    if (!s.rules.undo) { UI.status('Undo tidak tersedia di mode ini.'); return; }
     const idx = Game.undo();
     if (idx >= 0) {
       BoardView.rotateTile(idx, -1);
       BoardView.clearFlow(); BoardView.clearHint();
-      UI.setHud(Game.s);
-      UI.status('Satu langkah dikembalikan.');
+      UI.setHud(s);
+      UI.status(s.rules.undoCosts ? 'Undo dihitung sebagai satu gerakan.' : 'Satu langkah dikembalikan.');
+      afterMove();
     }
   }
 
@@ -114,19 +147,25 @@
   }
 
   function doTest() {
-    if (!inGame() || UI.modalOpen() || Game.s.solved) return;
+    if (!inGame() || UI.modalOpen() || Game.s.solved || Game.s.over) return;
     const trace = Game.test();
     BoardView.clearHint();
     BoardView.flow(trace, reduce());
     if (trace.solved) {
-      UI.status('Energi mengalir ke Target!', 'ok');
-      const wait = reduce() ? 300 : 300 + Math.max(...trace.powered.values()) * 70 + 400;
-      flowTimer = setTimeout(finishLevel, wait);
+      winFlow(trace);
     } else {
       BoardView.markErrors(trace.leaks);
       const n = trace.leaks.length;
-      UI.status(n ? 'Energi bocor di ' + n + ' titik (ditandai merah).' : 'Energi tidak mengalir keluar dari Source.', 'bad');
+      let msg = n ? 'Energi bocor di ' + n + ' titik (ditandai merah).' : 'Energi tidak mengalir keluar dari Source.';
+      if (trace.targets.length > 1) msg = trace.targetsOn.length + ' dari ' + trace.targets.length + ' target menyala. ' + msg;
+      UI.status(msg, 'bad');
     }
+  }
+
+  function winFlow(trace) {
+    UI.status(trace.targets.length > 1 ? 'Semua target menyala!' : 'Energi mengalir ke Target!', 'ok');
+    const wait = reduce() ? 300 : 300 + Math.max(...trace.powered.values()) * 70 + 400;
+    flowTimer = setTimeout(finishLevel, wait);
   }
 
   function finishLevel() {
@@ -165,7 +204,7 @@
 
   function doLeave() {
     if (!inGame()) { toLevels(); return; }
-    if (Game.s.moves > 0 && !Game.s.solved) {
+    if (Game.s.moves > 0 && !Game.s.solved && !Game.s.over) {
       UI.confirm('Keluar dari level?', 'Progres level ini akan hilang.', 'Keluar', () => { Storage.save(); toLevels(); });
     } else toLevels();
   }

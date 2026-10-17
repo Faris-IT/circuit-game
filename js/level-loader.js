@@ -3,9 +3,24 @@
   const builders = {};
 
   function finish(board, extra) {
-    const sol = MC.Solver.solve(board);
-    const par = sol ? sol.cost : 0;
-    return Object.assign({ board, par, solvable: !!sol }, extra);
+    let par = 0, solvable = false;
+    if (board.solution) {
+      par = MC.Solver.solutionCost(board);
+      solvable = MC.Solver.verifySolution(board);
+    } else {
+      const sol = MC.Solver.solve(board);
+      par = sol ? sol.cost : 0;
+      solvable = !!sol;
+    }
+    return Object.assign({ board, par, solvable }, extra);
+  }
+
+  function pickTier(tiers, k) {
+    for (const t of tiers) {
+      if (k < t.count) return t;
+      k -= t.count;
+    }
+    return tiers[tiers.length - 1];
   }
 
   function classicCount() {
@@ -50,7 +65,7 @@
   }
 
   MC.Levels = {
-    builders,
+    builders, finish, pickTier,
     count(modeId) { return builders[modeId] ? builders[modeId].count() : 0; },
     label(modeId, i) { return builders[modeId].label(i); },
     load(modeId, i) {

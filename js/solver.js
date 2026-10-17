@@ -55,10 +55,40 @@
     return best;
   }
 
+  // Papan dengan solusi tersimpan (Multi Target): biaya putar menuju solusi tersebut.
+  function solutionCost(board) {
+    let c = 0;
+    for (const p of board.solution) {
+      const cur = board.tiles[p.idx].rot;
+      if (p.rots.includes(cur)) continue;
+      let k = 4;
+      for (const r of p.rots) k = Math.min(k, (r - cur + 4) % 4);
+      c += k;
+    }
+    return c;
+  }
+
+  // Memverifikasi lewat mesin sirkuit bahwa solusi tersimpan benar-benar mengaktifkan semua target.
+  function verifySolution(board) {
+    const copy = { rows: board.rows, cols: board.cols, tiles: board.tiles.map((t) => ({ type: t.type, rot: t.rot, locked: t.locked })) };
+    board.solution.forEach((p) => { copy.tiles[p.idx].rot = p.rots[0]; });
+    return MC.Engine.trace(copy).solved;
+  }
+
   // Petunjuk dari solusi valid: ubin pertama pada jalur yang belum benar.
   function hint(board) {
     const E = MC.Engine;
     if (E.trace(board).solved) return { idx: -1, clicks: 0 };
+    if (board.solution) {
+      for (const p of board.solution) {
+        const cur = board.tiles[p.idx].rot;
+        if (p.rots.includes(cur)) continue;
+        let clicks = 4;
+        for (const r of p.rots) clicks = Math.min(clicks, (r - cur + 4) % 4);
+        return { idx: p.idx, clicks };
+      }
+      return { idx: -1, clicks: 0 };
+    }
     const s = solve(board);
     if (!s) return null;
     for (const p of s.path) {
@@ -72,5 +102,5 @@
     return { idx: -1, clicks: 0 };
   }
 
-  MC.Solver = { solve, hint, options };
+  MC.Solver = { solve, hint, options, solutionCost, verifySolution };
 })(typeof window !== 'undefined' ? window : globalThis);

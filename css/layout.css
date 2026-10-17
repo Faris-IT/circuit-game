@@ -54,6 +54,7 @@
 .chip { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px 8px; text-align: center; }
 .chip small { display: block; color: var(--muted); font-size: .7rem; }
 .chip b { font-family: var(--mono); font-size: 1.1rem; }
+.chip b.warn { color: var(--danger); }
 .status { min-height: 1.5em; margin: 0; text-align: center; color: var(--muted); }
 .status.ok { color: var(--green); }
 .status.bad { color: var(--danger); }

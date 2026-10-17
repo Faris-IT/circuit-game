@@ -26,7 +26,8 @@
       board.tiles.forEach((t, i) => {
         const el = document.createElement('button');
         el.type = 'button';
-        el.className = 'tile type-' + t.type + (t.locked ? ' locked' : '');
+        const fixed = t.locked && MC.Components.TYPES[t.type].rotatable; // ubin yang bisa diputar tetapi dikunci
+        el.className = 'tile type-' + t.type + (t.locked ? ' locked' : '') + (fixed ? ' fixed' : '');
         el.dataset.idx = i;
         el.tabIndex = i === 0 ? 0 : -1;
         el.innerHTML = '<svg viewBox="0 0 100 100" aria-hidden="true">' + SVG[t.type] + '</svg>';

@@ -40,5 +40,11 @@
 .tile.on .node.tgt { stroke: var(--green); fill: #12351f; transition-delay: var(--d, 0ms); }
 .tile.on .tgt-core { fill: var(--green); transition-delay: var(--d, 0ms); }
 
+/* Penanda ubin terkunci (tidak bisa diputar): sudut ungu + garis tepi, tidak hanya warna. */
+.tile.fixed { background: var(--tile-locked); box-shadow: inset 0 0 0 2px #3b2f6b; }
+.tile.fixed::after {
+  content: ''; position: absolute; top: 4px; right: 4px; width: 0; height: 0;
+  border-top: 12px solid var(--purple); border-left: 12px solid transparent; border-top-right-radius: 6px;
+}
 .tile.hint { box-shadow: inset 0 0 0 3px var(--yellow); }
 .tile.err { box-shadow: inset 0 0 0 3px var(--danger); }

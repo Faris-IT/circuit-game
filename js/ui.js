@@ -139,7 +139,9 @@
 
     setHud(s) {
       $('h-moves').textContent = s.moves;
-      $('h-ideal').textContent = s.ideal;
+      $('h-moves').classList.toggle('warn', !!s.limit && s.limit - s.moves <= 2);
+      $('h-ideal-l').textContent = s.limit ? 'Batas' : 'Ideal ≤';
+      $('h-ideal').textContent = s.limit || s.ideal;
       $('h-hints').textContent = s.hints;
       this.setTime(s.elapsed);
     },

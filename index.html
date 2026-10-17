@@ -58,7 +58,7 @@
     </header>
     <div class="hud" aria-live="off">
       <div class="chip"><small>Gerakan</small><b id="h-moves">0</b></div>
-      <div class="chip"><small>Ideal ≤</small><b id="h-ideal">0</b></div>
+      <div class="chip"><small id="h-ideal-l">Ideal ≤</small><b id="h-ideal">0</b></div>
       <div class="chip"><small>Waktu</small><b id="h-time">0:00</b></div>
       <div class="chip"><small>Hint</small><b id="h-hints">0</b></div>
     </div>
@@ -66,7 +66,7 @@
     <p id="g-status" class="status" aria-live="polite"></p>
     <div class="controls">
       <button class="btn" data-action="hint" title="Hint (H)">💡 Hint</button>
-      <button class="btn" data-action="undo" title="Undo (Z)">↶ Undo</button>
+      <button class="btn" data-action="undo" id="btn-undo" title="Undo (Z)">↶ Undo</button>
       <button class="btn" data-action="restart" title="Restart (R)">⟲ Restart</button>
     </div>
     <button class="btn primary big test" data-action="test" title="Enter">TEST CIRCUIT</button>
@@ -131,6 +131,9 @@
 <script src="js/ui.js"></script>
 <script src="js/input.js"></script>
 <script src="modes/classic.js"></script>
+<script src="modes/move-limit.js"></script>
+<script src="modes/maze.js"></script>
+<script src="modes/multi-target.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

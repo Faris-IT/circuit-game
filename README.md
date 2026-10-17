@@ -9,7 +9,7 @@ Game #2 untuk katalog Mufa Games — puzzle logika sirkuit, 1 pemain, HTML5 + CS
 |---|---|---|
 | 1 — Fondasi | Struktur, tema, ubin, papan, input, navigasi | Selesai |
 | 2 — Mesin Sirkuit | Koneksi, Source/Target/penghalang, TEST, undo, restart, hint, solver | Selesai |
-| 3 — Mode Awal | Circuit Classic (dimainkan), Maze, Multi Target, Move Limit | Classic selesai, 3 lainnya menyusul |
+| 3 — Mode Awal | Circuit Classic, Circuit Maze, Multi Target, Move Limit | Selesai (4 mode, 53 level) |
 | 4–6 | Mode lanjutan, mode akhir + progres lengkap, pengujian & rilis | Belum |
 
 Kerangka skor, bintang, statistik, achievement, penyimpanan, mode latihan, jeda, dan konfirmasi keluar sudah aktif dan dipakai Circuit Classic.
@@ -44,7 +44,18 @@ modes/ classic.js
 data/  levels-classic.js
 ```
 
+## Mode yang tersedia
+
+| Mode | Level | Aturan khusus |
+|---|---|---|
+| Circuit Classic | 17 | Tanpa batas; bintang dari gerakan, waktu, dan hint |
+| Move Limit | 12 | Batas gerakan, undo dimatikan; kalah jika gerakan habis |
+| Circuit Maze | 12 | Banyak penghalang + ubin terkunci (sudut ungu); ada batas gerakan, undo dihitung sebagai gerakan |
+| Multi Target | 12 | 2–4 Target harus menyala sekaligus; simpang-T dan persimpangan membagi aliran |
+
 ## Keputusan desain
+
+- Multi Target dibangun dari pohon sirkuit; solusinya disimpan di `board.solution`, diverifikasi mesin sirkuit, dan dipakai untuk hint serta par.
 
 - Energi dihitung dari data koneksi aktual tiap ubin (`circuit-engine.js`), bukan dari tampilan.
 - Level prosedural dibuat dari jalur solusi lebih dulu, lalu rotasi diacak; `solver.js` memverifikasi dan menghitung gerakan minimum (par). Hint berasal dari solusi yang sama.
