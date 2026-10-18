@@ -96,7 +96,8 @@
 
     renderMenuFoot() {
       const S = MC.Storage;
-      $('menu-foot').textContent = '★ ' + S.totalStars() + ' bintang · 🏆 ' + Object.keys(S.data.achievements).length + '/' + MC.Achievements.list.length;
+      const streak = MC.Daily ? MC.Daily.current(S.data.stats.dailyDays, MC.Daily.key()) : 0;
+      $('menu-foot').textContent = '★ ' + S.totalStars() + ' bintang · 🏆 ' + Object.keys(S.data.achievements).length + '/' + MC.Achievements.list.length + (streak ? ' · 🔥 ' + streak + ' hari' : '');
     },
 
     renderModes(onPick) {
@@ -107,13 +108,20 @@
         const avail = !!mode;
         const total = avail ? MC.Levels.count(m.id) : 0;
         const done = MC.Storage.completedCount(m.id);
+        const S = MC.Storage.data;
+        let meta = 'Segera hadir';
+        if (avail) {
+          if (m.id === 'daily') meta = S.daily[MC.Daily.key()] ? '✓ selesai hari ini' : 'Belum dimainkan hari ini';
+          else if (mode.single) meta = S.stats.modeBest[m.id] ? 'Terbaik ' + S.stats.modeBest[m.id] : 'Belum dimainkan';
+          else meta = done + '/' + total + ' level';
+        }
         const card = h('button', { class: 'card', type: 'button', 'data-action': 'pick-mode', 'data-mode': m.id, disabled: !avail },
           h('span', { class: 'ico', 'aria-hidden': 'true' }, m.icon),
           h('h3', {}, m.name),
           h('p', {}, m.desc),
           h('span', { class: 'meta' },
             h('span', {}, '●'.repeat(m.difficulty) + '○'.repeat(3 - m.difficulty)),
-            h('span', { class: avail ? '' : 'soon' }, avail ? done + '/' + total + ' level' : 'Segera hadir')));
+            h('span', { class: avail ? '' : 'soon' }, meta)));
         grid.append(card);
       });
     },
@@ -137,15 +145,19 @@
       }
     },
 
+    // Mode dapat menyesuaikan HUD lewat mode.hud(s) -> { timeLabel, time, extra: {label, value} }.
     setHud(s) {
+      const m = MC.Modes[s.modeId] || {};
+      const hud = m.hud ? m.hud(s) : {};
       $('h-moves').textContent = s.moves;
       $('h-moves').classList.toggle('warn', !!s.limit && s.limit - s.moves <= 2);
       $('h-ideal-l').textContent = s.limit ? 'Batas' : 'Ideal ≤';
       $('h-ideal').textContent = s.limit || s.ideal;
-      $('h-hints').textContent = s.hints;
-      this.setTime(s.elapsed);
+      $('h-hints-l').textContent = hud.extra ? hud.extra.label : 'Hint';
+      $('h-hints').textContent = hud.extra ? hud.extra.value : s.hints;
+      $('h-time-l').textContent = hud.timeLabel || 'Waktu';
+      $('h-time').textContent = MC.Scoring.formatTime(hud.time != null ? hud.time : s.elapsed);
     },
-    setTime(ms) { $('h-time').textContent = MC.Scoring.formatTime(ms); },
     status(msg, kind) {
       const el = $('g-status');
       el.textContent = msg || '';
@@ -162,10 +174,13 @@
       for (let i = 0; i < 3; i++) stars.append(h('span', { class: i < r.stars ? 'on' : '' }, '★'));
       const grid = $('r-grid');
       grid.innerHTML = '';
-      const rows = [
-        ['Waktu', MC.Scoring.formatTime(r.timeMs)], ['Gerakan', r.moves], ['Ideal ≤', r.ideal],
-        ['Hint', r.hints], ['Skor', r.practice ? '—' : r.score], ['Terbaik', r.practice ? '—' : r.best]
-      ];
+      $('r-title').textContent = r.title || 'Sirkuit Terhubung!';
+      const rows = r.run
+        ? [['Puzzle selesai', r.solved], ['Skor', r.score], ['Terbaik', r.best], ['Gerakan', r.moves], ['Durasi', MC.Scoring.formatTime(r.timeMs)]]
+        : [
+          ['Waktu', MC.Scoring.formatTime(r.timeMs)], ['Gerakan', r.moves], ['Ideal ≤', r.ideal],
+          ['Hint', r.hints], ['Skor', r.practice ? '—' : r.score], ['Terbaik', r.practice ? '—' : r.best]
+        ];
       rows.forEach(([k, v]) => grid.append(h('div', {}, h('dt', {}, k), h('dd', {}, v))));
       const ach = $('r-ach');
       ach.innerHTML = '';
@@ -200,7 +215,9 @@
       const items = [
         ['Level selesai', st.levelsCompleted], ['Waktu bermain', MC.Scoring.formatTime(st.totalTimeMs)],
         ['Total gerakan', st.totalMoves], ['Hint dipakai', st.hintsUsed], ['Total bintang', MC.Storage.totalStars()],
-        ['Mode favorit', fav], ['Daily streak', st.dailyStreak],
+        ['Mode favorit', fav], ['Daily streak', MC.Daily.current(st.dailyDays, MC.Daily.key())],
+        ['Streak terbaik', st.bestDailyStreak + ' hari'],
+        ['Daily tercepat', st.bestDailyMs ? MC.Scoring.formatTime(st.bestDailyMs) : '—'],
         ['Achievement', Object.keys(MC.Storage.data.achievements).length + '/' + MC.Achievements.list.length]
       ];
       const grid = $('stats-grid');

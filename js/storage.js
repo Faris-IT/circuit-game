@@ -10,11 +10,12 @@
       stats: {
         levelsCompleted: 0, totalTimeMs: 0, totalMoves: 0, hintsUsed: 0,
         modePlays: {}, modeBest: {}, dailyStreak: 0, bestDailyStreak: 0,
-        dailyDays: [], endlessSolved: 0
+        dailyDays: [], endlessSolved: 0, bestDailyMs: 0
       },
       progress: {},
       achievements: {},
-      tutorialSeen: {}
+      tutorialSeen: {},
+      daily: {}   // hasil resmi Daily Circuit per tanggal lokal: { 'YYYY-MM-DD': {stars,moves,timeMs,score} }
     };
   }
 
@@ -24,7 +25,7 @@
     if (isObj(raw.settings)) d.settings.reduceMotion = raw.settings.reduceMotion === true;
     if (isObj(raw.stats)) {
       const s = raw.stats;
-      ['levelsCompleted', 'totalTimeMs', 'totalMoves', 'hintsUsed', 'dailyStreak', 'bestDailyStreak', 'endlessSolved']
+      ['levelsCompleted', 'totalTimeMs', 'totalMoves', 'hintsUsed', 'dailyStreak', 'bestDailyStreak', 'endlessSolved', 'bestDailyMs']
         .forEach((k) => { d.stats[k] = num(s[k]); });
       ['modePlays', 'modeBest'].forEach((k) => {
         if (isObj(s[k])) for (const m in s[k]) d.stats[k][m] = num(s[k][m]);
@@ -46,6 +47,13 @@
     }
     if (isObj(raw.achievements)) for (const k in raw.achievements) d.achievements[k] = num(raw.achievements[k], 1);
     if (isObj(raw.tutorialSeen)) for (const k in raw.tutorialSeen) d.tutorialSeen[k] = raw.tutorialSeen[k] === true;
+    if (isObj(raw.daily)) {
+      for (const k in raw.daily) {
+        const l = raw.daily[k];
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(k) || !isObj(l)) continue;
+        d.daily[k] = { stars: Math.min(3, num(l.stars)), moves: num(l.moves), timeMs: num(l.timeMs), score: num(l.score) };
+      }
+    }
     return d;
   }
 

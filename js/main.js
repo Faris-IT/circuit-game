@@ -5,12 +5,13 @@
 
   let modeId = null;      // mode yang sedang dipilih
   let practice = false;
-  let lastResult = null;
   let flowTimer = null;
   let saveCounter = 0;
+  let timer = null;
 
   const reduce = () => Storage.data.settings.reduceMotion;
   const inGame = () => UI.current() === 'game' && !!Game.s;
+  const modeOf = () => MC.Modes[Game.s.modeId];
 
   function applySettings() {
     document.documentElement.classList.toggle('reduce-motion', reduce());
@@ -25,32 +26,52 @@
     $('practice-toggle').checked = practice;
     UI.show('levels');
   }
+  // Mode "single" (Daily, Time Attack) tidak punya daftar level.
+  function backToList() {
+    if (MC.Modes[modeId] && MC.Modes[modeId].single) toModes(); else toLevels();
+  }
 
   /* ---------- timer ---------- */
-  let timer = null;
   function startTimer() {
     stopTimer();
     timer = setInterval(() => {
       if (!inGame()) return;
+      const s = Game.s;
       const dt = Game.tick(performance.now());
-      if (dt && !Game.s.practice) Storage.data.stats.totalTimeMs += dt;
-      UI.setTime(Game.s.elapsed);
-      if (++saveCounter % 20 === 0) Storage.save();
-    }, 250);
+      if (dt) {
+        if (!s.practice && !s.locked) Storage.data.stats.totalTimeMs += dt;
+        const m = modeOf();
+        if (m.tick) m.tick(s, dt);
+      }
+      if (inGame()) UI.setHud(Game.s);
+      if (++saveCounter % 100 === 0) Storage.save();
+    }, 100);
   }
   function stopTimer() { clearInterval(timer); timer = null; clearTimeout(flowTimer); }
 
   /* ---------- permainan ---------- */
+  function mountBoard(s) {
+    BoardView.mount($('board'), s.board, onTile);
+    $('btn-undo').disabled = !s.rules.undo;
+    $('btn-hint').disabled = !s.rules.hint;
+    const m = MC.Modes[s.modeId];
+    if (m.header) $('g-level').textContent = m.header(s);   // mis. nomor puzzle Time Attack
+    const legend = $('g-legend');
+    legend.hidden = !m.legend;
+    legend.textContent = m.legend || '';
+    UI.setHud(s);
+    UI.status(s.limit ? 'Batas ' + s.limit + ' gerakan. Putar ubin, lalu tekan TEST CIRCUIT.' : 'Putar ubin, lalu tekan TEST CIRCUIT.');
+    if (m.afterMount) m.afterMount(s, Ctl);
+  }
+
   function startLevel(id, index) {
     modeId = id;
     clearTimeout(flowTimer);
     const s = Game.start(id, index, practice);
-    const cfg = MC.Config.MODES.find((m) => m.id === id);
-    UI.setGameHeader(cfg.name, (practice ? 'Latihan · ' : '') + 'Level ' + (index + 1) + ' · ' + s.size + '×' + s.size);
-    BoardView.mount($('board'), s.board, onTile);
-    UI.setHud(s);
-    $('btn-undo').disabled = !s.rules.undo;
-    UI.status(s.limit ? 'Batas ' + s.limit + ' gerakan. Putar ubin, lalu tekan TEST CIRCUIT.' : 'Putar ubin, lalu tekan TEST CIRCUIT.');
+    const m = MC.Modes[id];
+    const cfg = MC.Config.MODES.find((x) => x.id === id);
+    UI.setGameHeader(cfg.name, m.header ? m.header(s) : (practice ? 'Latihan · ' : '') + 'Level ' + (index + 1) + ' · ' + s.size + '×' + s.size);
+    mountBoard(s);
     UI.show('game');
     if (!practice) {
       const st = Storage.data.stats;
@@ -58,17 +79,36 @@
       Storage.save();
     }
     startTimer();
-    const mode = MC.Modes[id];
-    if (mode.tutorial && !Storage.data.tutorialSeen[id]) {
+    if (m.tutorial && !Storage.data.tutorialSeen[id]) {
       Game.setRunning(false);
       const done = () => { Storage.data.tutorialSeen[id] = true; Storage.save(); Game.setRunning(true); };
-      UI.tutorial(mode, done);
+      UI.tutorial(m, done);
     }
+  }
+
+  function startDaily() {
+    modeId = 'daily';
+    const key = MC.Daily.key();
+    const rec = Storage.data.daily[key];
+    if (rec) {
+      UI.modal({
+        title: 'Daily Circuit hari ini sudah selesai',
+        body: 'Hasil resmi: ' + '★'.repeat(rec.stars) + ' · ' + rec.moves + ' gerakan · ' + Scoring.formatTime(rec.timeMs) +
+          '. Latihan ulang boleh dilakukan dan tidak mengubah hasil terbaik.',
+        buttons: [
+          { label: 'Kembali' },
+          { label: 'Latihan ulang', kind: 'primary', onClick: () => { practice = true; startLevel('daily', 0); } }
+        ]
+      });
+      return;
+    }
+    practice = false;
+    startLevel('daily', 0);
   }
 
   function onTile(idx) {
     const s = Game.s;
-    if (!s || s.solved || s.over || s.paused) return;
+    if (!s || s.solved || s.over || s.paused || s.locked) return;
     const t = s.board.tiles[idx];
     if (t.locked) {
       UI.status(t.type === 'cross' ? 'Persimpangan menghubungkan 4 arah, tidak perlu diputar.' : 'Ubin ini terkunci.');
@@ -96,17 +136,15 @@
     s.over = true; s.running = false;
     BoardView.markErrors(trace.leaks);
     UI.status('Gerakan habis!', 'bad');
-    flowTimer = setTimeout(showLoss, reduce() ? 300 : 900);
+    flowTimer = setTimeout(() => showLoss('Gerakan habis', 'Sirkuit belum tersambung sebelum batas ' + s.limit + ' gerakan terpakai. Coba rencanakan jalurnya lebih dulu.'), reduce() ? 300 : 900);
   }
 
-  function showLoss() {
+  function showLoss(title, body) {
     const s = Game.s;
     UI.modal({
-      title: 'Gerakan habis',
-      body: 'Sirkuit belum tersambung sebelum batas ' + s.limit + ' gerakan terpakai. Coba rencanakan jalurnya lebih dulu.',
-      cancelable: false,
+      title, body, cancelable: false,
       buttons: [
-        { label: 'Daftar level', onClick: toLevels },
+        { label: 'Kembali', onClick: backToList },
         { label: 'Coba lagi', kind: 'primary', onClick: () => startLevel(s.modeId, s.index) }
       ]
     });
@@ -129,14 +167,19 @@
   function doRestart() {
     if (!inGame() || UI.modalOpen()) return;
     clearTimeout(flowTimer);
-    Game.restart();
+    const s = Game.s;
+    Game.restart();            // memanggil mode.restart(s) bila ada
     BoardView.reset();
-    UI.setHud(Game.s);
+    BoardView.setMask(null);
+    UI.setHud(s);
     UI.status('Level diulang dari awal.');
+    const m = modeOf();
+    if (m.afterMount) m.afterMount(s, Ctl);
   }
 
   function doHint() {
     if (!inGame() || UI.modalOpen() || Game.s.solved) return;
+    if (!Game.s.rules.hint) { UI.status('Hint dimatikan di mode ini.'); return; }
     const h = Game.hint();
     if (!h) { UI.status('Tidak ada hint yang tersedia.'); return; }
     if (h.idx < 0) { UI.status('Sirkuit sudah benar — tekan TEST CIRCUIT.', 'ok'); return; }
@@ -147,19 +190,25 @@
   }
 
   function doTest() {
-    if (!inGame() || UI.modalOpen() || Game.s.solved || Game.s.over) return;
+    if (!inGame() || UI.modalOpen()) return;
+    const s = Game.s, m = modeOf();
+    if (s.solved || s.over) return;
+    if (s.locked) { if (m.skip) m.skip(s, Ctl); return; }   // mis. Enter mengakhiri fase menghafal
     const trace = Game.test();
     BoardView.clearHint();
     BoardView.flow(trace, reduce());
     if (trace.solved) {
-      winFlow(trace);
-    } else {
-      BoardView.markErrors(trace.leaks);
-      const n = trace.leaks.length;
-      let msg = n ? 'Energi bocor di ' + n + ' titik (ditandai merah).' : 'Energi tidak mengalir keluar dari Source.';
-      if (trace.targets.length > 1) msg = trace.targetsOn.length + ' dari ' + trace.targets.length + ' target menyala. ' + msg;
-      UI.status(msg, 'bad');
+      if (m.onSolved) m.onSolved(s);
+      if (m.run) runSolved(trace); else winFlow(trace);
+      return;
     }
+    BoardView.markErrors(trace.leaks.concat(trace.wrong || []));
+    const n = trace.leaks.length;
+    let msg = n ? 'Energi bocor di ' + n + ' titik (ditandai merah).' : 'Energi tidak mengalir keluar dari Source.';
+    if (trace.wrong && trace.wrong.length) msg = 'Warna salah di ' + trace.wrong.length + ' target (garis putus merah). ' + (n ? msg : '');
+    else if (trace.targets.length > 1) msg = trace.targetsOn.length + ' dari ' + trace.targets.length + ' target menyala. ' + msg;
+    UI.status(msg, 'bad');
+    if (m.onFail) m.onFail(s, trace, Ctl);
   }
 
   function winFlow(trace) {
@@ -168,45 +217,83 @@
     flowTimer = setTimeout(finishLevel, wait);
   }
 
+  // Menyimpan hasil level ke progres (mode tanpa record khusus).
+  function genericRecord(s, res, ev) {
+    const prog = (Storage.data.progress[s.modeId] = Storage.data.progress[s.modeId] || { levels: {} });
+    const prev = prog.levels[s.index];
+    const rec = prev
+      ? { stars: Math.max(prev.stars, ev.stars), moves: Math.min(prev.moves || Infinity, res.moves), timeMs: Math.min(prev.timeMs || Infinity, res.timeMs), score: Math.max(prev.score, ev.score) }
+      : { stars: ev.stars, moves: res.moves, timeMs: res.timeMs, score: ev.score };
+    prog.levels[s.index] = rec;
+    res.best = rec.score;
+    const st = Storage.data.stats;
+    st.modeBest[s.modeId] = Math.max(st.modeBest[s.modeId] || 0, ev.score);
+  }
+
   function finishLevel() {
-    const s = Game.s;
+    const s = Game.s, m = modeOf();
     const base = { moves: s.moves, hints: s.hints, timeMs: Math.round(s.elapsed), par: s.par, size: s.size };
     const ev = Scoring.evaluate(base);
     const res = Object.assign({}, base, ev, { practice: s.practice, newAch: [], best: ev.score });
-    const total = MC.Levels.count(s.modeId);
-    res.hasNext = s.index + 1 < total;
+    res.hasNext = !m.single && s.index + 1 < MC.Levels.count(s.modeId);
 
     if (!s.practice) {
-      const st = Storage.data.stats;
-      st.levelsCompleted++;
-      const prog = (Storage.data.progress[s.modeId] = Storage.data.progress[s.modeId] || { levels: {} });
-      const prev = prog.levels[s.index];
-      const rec = prev
-        ? { stars: Math.max(prev.stars, ev.stars), moves: Math.min(prev.moves || Infinity, res.moves), timeMs: Math.min(prev.timeMs || Infinity, res.timeMs), score: Math.max(prev.score, ev.score) }
-        : { stars: ev.stars, moves: res.moves, timeMs: res.timeMs, score: ev.score };
-      prog.levels[s.index] = rec;
-      res.best = rec.score;
-      st.modeBest[s.modeId] = Math.max(st.modeBest[s.modeId] || 0, ev.score);
+      Storage.data.stats.levelsCompleted++;
+      if (m.record) m.record(s, res, Storage.data); else genericRecord(s, res, ev);
+      res.newAch = Achievements.check({ modeId: s.modeId, completed: true, result: res });
+    }
+    if (s.modeId === 'daily') practice = true;     // percobaan berikutnya hanya latihan
+    Storage.save();
+    UI.renderResult(res);
+    UI.show('result');
+  }
+
+  /* ---------- Time Attack: satu sesi berisi banyak puzzle ---------- */
+  function runSolved(trace) {
+    const s = Game.s, m = modeOf();
+    const pts = m.award(s);
+    if (!s.practice) { Storage.data.stats.levelsCompleted++; Storage.save(); }
+    s.locked = true;
+    UI.status('+' + pts + ' poin!', 'ok');
+    UI.setHud(s);
+    flowTimer = setTimeout(() => {
+      if (!inGame() || s.over) return;
+      Game.nextPuzzle(m.next(s));
+      mountBoard(s);
+      UI.status('Puzzle berikutnya!');
+    }, reduce() ? 250 : 550);
+  }
+
+  function endRun() {
+    const s = Game.s, m = modeOf(), run = s.run;
+    s.over = true; s.running = false; clearTimeout(flowTimer);
+    const stars = run.solved >= 10 ? 3 : run.solved >= 6 ? 2 : run.solved >= 3 ? 1 : 0;
+    const res = {
+      run: true, title: 'Waktu habis!', stars, score: run.score, solved: run.solved, moves: run.moves,
+      timeMs: m.duration, hints: 0, ideal: 0, practice: false, newAch: [], best: run.score, hasNext: false, quick: false
+    };
+    if (run.solved > 0) {
+      m.record(s, res, Storage.data);
       res.newAch = Achievements.check({ modeId: s.modeId, completed: true, result: res });
     }
     Storage.save();
-    lastResult = res;
     UI.renderResult(res);
     UI.show('result');
   }
 
   function doPause() {
-    if (!inGame() || UI.modalOpen() || Game.s.solved) return;
+    if (!inGame() || UI.modalOpen() || Game.s.solved || Game.s.over) return;
     const s = Game.s;
     s.paused = true; BoardView.setPaused(true);
     UI.pause(() => { s.paused = false; s.lastTick = performance.now(); BoardView.setPaused(false); });
   }
 
   function doLeave() {
-    if (!inGame()) { toLevels(); return; }
-    if (Game.s.moves > 0 && !Game.s.solved && !Game.s.over) {
-      UI.confirm('Keluar dari level?', 'Progres level ini akan hilang.', 'Keluar', () => { Storage.save(); toLevels(); });
-    } else toLevels();
+    if (!inGame()) { backToList(); return; }
+    const s = Game.s;
+    if (s.moves > 0 && !s.solved && !s.over) {
+      UI.confirm('Keluar dari level?', 'Progres level ini akan hilang.', 'Keluar', () => { Storage.save(); backToList(); });
+    } else backToList();
   }
 
   function escape() {
@@ -214,17 +301,27 @@
     if (inGame()) doPause();
   }
 
+  // Jembatan untuk hook mode (hanya yang dibutuhkan mode).
+  const Ctl = { endRun, showLoss, status: (m, k) => UI.status(m, k), reduce };
+  MC.Ctl = Ctl;
+
   /* ---------- aksi tombol ---------- */
   const actions = {
     play: toModes,
-    daily() { UI.toast('Daily Circuit hadir di Tahap 4 pengembangan.'); },
+    daily() { startDaily(); },
     achievements() { UI.renderAchievements(); UI.show('achievements'); },
     stats() { UI.renderStats(); UI.show('stats'); },
     settings() { UI.renderSettings(); UI.show('settings'); },
     'to-menu': toMenu,
     'to-modes': toModes,
-    'to-levels': toLevels,
-    'pick-mode'(el) { modeId = el.dataset.mode; toLevels(); },
+    'to-levels'() { if (Game.s) modeId = Game.s.modeId; backToList(); },
+    'pick-mode'(el) {
+      modeId = el.dataset.mode;
+      if (modeId === 'daily') { startDaily(); return; }
+      practice = false;   // status latihan (mis. setelah Daily) tidak boleh terbawa ke mode lain
+      if (MC.Modes[modeId].single) { startLevel(modeId, 0); return; }
+      toLevels();
+    },
     'pick-level'(el) { practice = $('practice-toggle').checked; startLevel(modeId, +el.dataset.index); },
     test: doTest, undo: doUndo, restart: doRestart, hint: doHint, pause: doPause, leave: doLeave,
     next() { startLevel(Game.s.modeId, Game.s.index + 1); },
@@ -252,7 +349,7 @@
     MC.Input.init({ inGame, escape, test: doTest, undo: doUndo, restart: doRestart, hint: doHint });
     document.addEventListener('visibilitychange', () => {
       Storage.save();
-      if (document.hidden && inGame() && !Game.s.solved && !UI.modalOpen()) doPause();
+      if (document.hidden && inGame() && !Game.s.solved && !Game.s.over && !UI.modalOpen()) doPause();
     });
     window.addEventListener('pagehide', () => Storage.save());
     window.addEventListener('error', (e) => { UI.toast('Terjadi kesalahan: ' + e.message); });

@@ -59,13 +59,14 @@
     <div class="hud" aria-live="off">
       <div class="chip"><small>Gerakan</small><b id="h-moves">0</b></div>
       <div class="chip"><small id="h-ideal-l">Ideal ≤</small><b id="h-ideal">0</b></div>
-      <div class="chip"><small>Waktu</small><b id="h-time">0:00</b></div>
-      <div class="chip"><small>Hint</small><b id="h-hints">0</b></div>
+      <div class="chip"><small id="h-time-l">Waktu</small><b id="h-time">0:00</b></div>
+      <div class="chip"><small id="h-hints-l">Hint</small><b id="h-hints">0</b></div>
     </div>
     <div class="board-wrap"><div id="board" class="board" role="group" aria-label="Papan sirkuit"></div></div>
+    <p id="g-legend" class="legend" hidden></p>
     <p id="g-status" class="status" aria-live="polite"></p>
     <div class="controls">
-      <button class="btn" data-action="hint" title="Hint (H)">💡 Hint</button>
+      <button class="btn" data-action="hint" id="btn-hint" title="Hint (H)">💡 Hint</button>
       <button class="btn" data-action="undo" id="btn-undo" title="Undo (Z)">↶ Undo</button>
       <button class="btn" data-action="restart" title="Restart (R)">⟲ Restart</button>
     </div>
@@ -134,6 +135,11 @@
 <script src="modes/move-limit.js"></script>
 <script src="modes/maze.js"></script>
 <script src="modes/multi-target.js"></script>
+<script src="modes/time-attack.js"></script>
+<script src="modes/memory.js"></script>
+<script src="modes/daily.js"></script>
+<script src="modes/color-logic.js"></script>
+<script src="modes/unstable-grid.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

@@ -21,3 +21,6 @@ html.reduce-motion *, html.reduce-motion *::before, html.reduce-motion *::after 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; transition-delay: 0ms !important; }
 }
+
+@keyframes warnflash { 0%, 100% { box-shadow: inset 0 0 0 3px var(--danger); background: #3b1620; } 50% { box-shadow: inset 0 0 0 3px transparent; } }
+.tile.warn { animation: warnflash .35s infinite; }

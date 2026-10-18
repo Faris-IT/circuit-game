@@ -10,15 +10,20 @@
     straight: { glyph: 'I', base: [0, 2],       rotatable: true,  label: 'Lurus' },
     corner:   { glyph: 'L', base: [0, 1],       rotatable: true,  label: 'Sudut' },
     tee:      { glyph: 'Y', base: [0, 1, 2],    rotatable: true,  label: 'Simpang-T' },
-    cross:    { glyph: 'X', base: [0, 1, 2, 3], rotatable: false, label: 'Persimpangan' }
+    cross:    { glyph: 'X', base: [0, 1, 2, 3], rotatable: false, label: 'Persimpangan' },
+    // Color Logic: filter = lurus yang hanya melewatkan warnanya; mixer = masukan di sisi 0 dan 2, keluaran di sisi 1.
+    filter:   { glyph: 'F', base: [0, 2],       rotatable: true,  label: 'Filter' },
+    mixer:    { glyph: 'M', base: [0, 1, 2],    rotatable: true,  label: 'Mixer' }
   };
   const GLYPH = {};
   for (const k in TYPES) GLYPH[TYPES[k].glyph] = k;
 
   const rotSides = (base, rot) => base.map((s) => (s + rot) % 4);
 
-  function make(type, rot) {
-    return { type, rot: ((rot || 0) % 4 + 4) % 4, locked: !TYPES[type].rotatable };
+  function make(type, rot, color) {
+    const t = { type, rot: ((rot || 0) % 4 + 4) % 4, locked: !TYPES[type].rotatable };
+    if (color) t.color = color;
+    return t;
   }
   function parseToken(tok) {
     const type = GLYPH[tok[0]];
@@ -53,7 +58,8 @@
   function describe(tile) {
     const t = TYPES[tile.type];
     const cs = conns(tile).map((s) => MC.Config.SIDE_NAMES[s]);
-    return cs.length ? t.label + ' (' + cs.join('-') + ')' : t.label;
+    const name = t.label + (tile.color ? ' ' + MC.Config.COLORS[tile.color].name + ' ' + MC.Config.COLORS[tile.color].sym : '');
+    return cs.length ? name + ' (' + cs.join('-') + ')' : name;
   }
 
   MC.Components = { TYPES, GLYPH, make, parseToken, conns, connectsTo, classes, rotFor, describe };

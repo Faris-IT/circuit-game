@@ -70,7 +70,10 @@
 
   // Memverifikasi lewat mesin sirkuit bahwa solusi tersimpan benar-benar mengaktifkan semua target.
   function verifySolution(board) {
-    const copy = { rows: board.rows, cols: board.cols, tiles: board.tiles.map((t) => ({ type: t.type, rot: t.rot, locked: t.locked })) };
+    const copy = {
+      rows: board.rows, cols: board.cols, colorMode: board.colorMode,
+      tiles: board.tiles.map((t) => ({ type: t.type, rot: t.rot, locked: t.locked, color: t.color }))
+    };
     board.solution.forEach((p) => { copy.tiles[p.idx].rot = p.rots[0]; });
     return MC.Engine.trace(copy).solved;
   }

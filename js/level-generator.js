@@ -252,5 +252,171 @@
     throw new Error('Generator multi-target gagal untuk seed ' + opts.seed);
   }
 
-  MC.Generator = { rng, generate, generateMulti, scramble, shuffle };
+  // Color Logic: papan terselesaikan dibangun lebih dulu, lalu rotasi diacak. Jenis (kind):
+  //   sep2      dua Source (C, Y) ke dua Target sewarna lewat jalur terpisah
+  //   sepf      seperti sep2, tiap jalur memuat Filter sewarna
+  //   mix       C dan Y masuk ke Mixer, keluaran hijau (G) ke Target G
+  //   mix2      mix + satu jalur C/Y terpisah ke Target sewarna
+  //   mix_split mix, lalu simpang-T membagi hijau ke dua Target G
+  function generateColor(opts) {
+    const C = MC.Components, E = MC.Engine, S = MC.Solver;
+    const rows = opts.rows, cols = opts.cols, kind = opts.kind;
+    const trap = opts.trap == null ? 0.1 : opts.trap;
+    const blockers = opts.blockers == null ? 0.08 : opts.blockers;
+    const r = rng(opts.seed);
+    const DIRS = MC.Config.DIRS;
+    const cell = (a, b) => a * cols + b;
+    const rc = (i) => [Math.floor(i / cols), i % cols];
+    const pickRows = (n) => shuffle([...Array(rows).keys()], r).slice(0, n);
+    const needMixer = kind === 'mix' || kind === 'mix2' || kind === 'mix_split';
+
+    for (let attempt = 0; attempt < 500; attempt++) {
+      const conn = new Map();
+      const add = (i, s) => { if (!conn.has(i)) conn.set(i, new Set()); conn.get(i).add(s); };
+      const link = (a, b) => { const s = sideTo(rc(a), rc(b)); add(a, s); add(b, (s + 2) % 4); };
+      const reserved = new Set();
+      const legs = [];            // { cells, color } untuk penempatan Filter
+      const sources = [], targets = [];
+      const coin = r() < 0.5;
+      const cA = coin ? 'C' : 'Y', cB = coin ? 'Y' : 'C';
+
+      const leg = (start, goal) => {
+        const blocked = new Set(reserved);
+        blocked.delete(cell(start[0], start[1])); blocked.delete(cell(goal[0], goal[1]));
+        return pathBetween(rows, cols, start, goal, blocked, r, 6000);
+      };
+      const commit = (seq, from, to, color) => {
+        let prev = from;
+        const cells = [];
+        seq.forEach(([a, b]) => { const i = cell(a, b); link(prev, i); prev = i; reserved.add(i); cells.push(i); });
+        link(prev, to);
+        if (color) legs.push({ cells, color });
+        return cells;
+      };
+      const addSource = (row, color) => { sources.push({ idx: cell(row, 0), color }); return cell(row, 0); };
+      const addTarget = (row, color) => { targets.push({ idx: cell(row, cols - 1), color }); return cell(row, cols - 1); };
+
+      let ok = true, mixIdx = -1, mixRot = 0, outCells = [];
+      if (!needMixer) {
+        const sr = pickRows(2), tr = pickRows(2), cs = [cA, cB];
+        for (let k = 0; k < 2 && ok; k++) {
+          const seq = leg([sr[k], 1], [tr[k], cols - 2]);
+          if (!seq) { ok = false; break; }
+          commit(seq, addSource(sr[k], cs[k]), addTarget(tr[k], cs[k]), cs[k]);
+        }
+      } else {
+        if (cols < 5 || rows < 4) throw new Error('Papan terlalu kecil untuk Mixer');
+        const mr = 1 + Math.floor(r() * (rows - 2)), mc = 2 + Math.floor(r() * (cols - 4));
+        const horizontal = r() < 0.5;
+        const sideOut = horizontal ? (r() < 0.5 ? 0 : 2) : (r() < 0.5 ? 1 : 3);
+        const inSides = horizontal ? [3, 1] : [0, 2];
+        mixRot = (sideOut + 3) % 4;
+        mixIdx = cell(mr, mc);
+        const nb = (s) => [mr + DIRS[s][0], mc + DIRS[s][1]];
+        const nIn = inSides.map(nb), nOut = nb(sideOut);
+        reserved.add(mixIdx);
+        [nIn[0], nIn[1], nOut].forEach((n) => reserved.add(cell(n[0], n[1])));
+        const k = kind === 'mix2' ? 3 : 2, t = kind === 'mix_split' ? 2 : (kind === 'mix2' ? 2 : 1);
+        const sr = pickRows(k), tr = pickRows(t);
+        const cs = [cA, cB];
+        for (let q = 0; q < 2 && ok; q++) {
+          const seq = leg([sr[q], 1], nIn[q]);
+          if (!seq) { ok = false; break; }
+          commit(seq, addSource(sr[q], cs[q]), mixIdx, cs[q]);
+        }
+        if (ok) {
+          const seq = leg(nOut, [tr[0], cols - 2]);
+          if (!seq) ok = false;
+          else outCells = commit(seq, mixIdx, addTarget(tr[0], 'G'), 'G');
+        }
+        if (ok && kind === 'mix2') {
+          const color = r() < 0.5 ? 'C' : 'Y';
+          const seq = leg([sr[2], 1], [tr[1], cols - 2]);
+          if (!seq) ok = false;
+          else commit(seq, addSource(sr[2], color), addTarget(tr[1], color), color);
+        }
+        if (ok && kind === 'mix_split') {
+          let done = false;
+          for (const b of shuffle(outCells.slice(), r)) {
+            const [br, bc] = rc(b);
+            for (const d of shuffle([0, 1, 2, 3], r)) {
+              const nr = br + DIRS[d][0], nc = bc + DIRS[d][1];
+              if (nr < 0 || nr >= rows || nc < 1 || nc > cols - 2 || reserved.has(cell(nr, nc))) continue;
+              const seq = leg([nr, nc], [tr[1], cols - 2]);
+              if (!seq) continue;
+              commit(seq, b, addTarget(tr[1], 'G'), 'G');
+              done = true; break;
+            }
+            if (done) break;
+          }
+          if (!done) ok = false;
+        }
+      }
+      if (!ok) continue;
+
+      const tiles = new Array(rows * cols).fill(null);
+      sources.forEach((s) => { tiles[s.idx] = C.make('source', 1, s.color); });
+      targets.forEach((t) => { tiles[t.idx] = C.make('target', 3, t.color); });
+      const treeIdx = [];
+      conn.forEach((sides, i) => {
+        if (tiles[i]) return;
+        const s = [...sides];
+        let type, rot;
+        if (i === mixIdx) { type = 'mixer'; rot = mixRot; }
+        else if (s.length === 2) { type = s[1] === (s[0] + 2) % 4 ? 'straight' : 'corner'; rot = C.rotFor(type, s[0], s[1]); }
+        else if (s.length === 3) { type = 'tee'; const m = [0, 1, 2, 3].find((x) => !sides.has(x)); rot = (m + 1) % 4; }
+        else { type = 'cross'; rot = 0; }
+        tiles[i] = C.make(type, rot);
+        treeIdx.push(i);
+      });
+      // Filter sewarna ditempatkan pada ubin Lurus di jalur (wajib di sepf, opsional di jenis lain).
+      let filterFail = false;
+      legs.forEach((L) => {
+        const cand = L.cells.filter((i) => tiles[i].type === 'straight');
+        const want = kind === 'sepf' ? L.color !== 'G' : r() < 0.4;
+        if (!want) return;
+        if (!cand.length) { if (kind === 'sepf') filterFail = true; return; }
+        const i = cand[Math.floor(r() * cand.length)];
+        tiles[i] = C.make('filter', tiles[i].rot, L.color);
+      });
+      if (filterFail) continue;
+      for (let i = 0; i < tiles.length; i++) {
+        if (tiles[i]) continue;
+        const x = r();
+        let type, color;
+        if (x < blockers) type = 'blocker';
+        else if (x < blockers + 0.05) type = 'empty';
+        else if (x < blockers + 0.05 + trap) { type = 'filter'; color = ['C', 'Y', 'G'][Math.floor(r() * 3)]; }
+        else if (x < blockers + 0.05 + trap + 0.04) type = 'mixer';
+        else { const y = r(); type = y < 0.3 ? 'straight' : y < 0.65 ? 'corner' : y < 0.82 ? 'tee' : 'cross'; }
+        tiles[i] = C.make(type, Math.floor(r() * 4), color);
+      }
+
+      const board = { rows, cols, tiles, colorMode: true };
+      const tr0 = E.trace(board);
+      if (!tr0.solved) continue;
+      board.solution = treeIdx
+        .map((i) => {
+          const t = tiles[i];
+          const cl = C.classes(t.type).find((c) => c.rots.includes(t.rot));
+          return { idx: i, rots: cl.rots.slice(), d: tr0.powered.get(i) || 0 };
+        })
+        .sort((a, b) => a.d - b.d)
+        .map((p) => ({ idx: p.idx, rots: p.rots }));
+
+      const rotIdx = treeIdx.filter((i) => !tiles[i].locked);
+      const minCost = Math.max(targets.length + 1, Math.floor(rotIdx.length / 2));
+      let good = false;
+      for (let t = 0; t < 300 && !good; t++) {
+        rotIdx.forEach((i) => { tiles[i].rot = Math.floor(r() * 4); });
+        if (E.trace(board).solved) continue;
+        if (S.solutionCost(board) >= minCost) good = true;
+      }
+      if (!good || !S.verifySolution(board)) continue;
+      return board;
+    }
+    throw new Error('Generator Color Logic gagal untuk seed ' + opts.seed + ' (' + kind + ')');
+  }
+
+  MC.Generator = { rng, generate, generateMulti, generateColor, scramble, shuffle };
 })(typeof window !== 'undefined' ? window : globalThis);
