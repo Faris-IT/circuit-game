@@ -96,3 +96,7 @@
   font-size: calc(max(var(--size), 220px) / var(--cols) * .26);
 }
 .tile.twin-hi { background: #2a2250; }
+
+/* Ponsel potret: papan A di atas, papan B di bawah. Tinggi mengikuti ruang layar yang tersedia. */
+.board.tall { --h: clamp(300px, calc(100dvh - 356px), 640px); width: calc(var(--h) * var(--cols) / var(--rows)); }
+.board.tall .badge.share { font-size: calc(var(--h) / var(--rows) * .26); }

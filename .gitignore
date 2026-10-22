@@ -1,0 +1,11 @@
+# Sistem
+.DS_Store
+Thumbs.db
+
+# Editor/log
+*.log
+
+# Hasil uji
+__pycache__/
+test-results/
+node_modules/

@@ -5,12 +5,16 @@
 
   const clone = (t) => Object.assign({}, t);
 
-  // Dua papan digabung menjadi satu papan lebar: papan A | kolom pemisah kosong | papan B.
-  // Kolom kosong memutus aliran antar papan, sehingga mesin sirkuit biasa dapat dipakai
+  // Dua papan digabung menjadi satu papan: A | pemisah kosong | B (berdampingan), atau ditumpuk vertikal
+  // di layar ponsel potret. Pemisah kosong memutus aliran antar papan, sehingga mesin sirkuit biasa dapat dipakai
   // (dua Source, dua Target; menang hanya jika kedua Target menyala).
   // Ubin bersama = pasangan ubin pada posisi sama di kedua papan (board.twins): memutar satu memutar kembarannya.
-  function build(n, seed, pairCount, minBoth) {
-    const W = 2 * n + 1, C = MC.Components, G = MC.Generator, S = MC.Solver, E = MC.Engine;
+  function preferVertical() {
+    return typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(max-width: 600px) and (orientation: portrait)').matches;
+  }
+
+  function build(n, seed, pairCount, minBoth, vertical) {
+    const W = vertical ? n : 2 * n + 1, H = vertical ? 2 * n + 1 : n, C = MC.Components, G = MC.Generator, S = MC.Solver, E = MC.Engine;
     for (let att = 0; att < 120; att++) {
       let A, B, pa, pb;
       try {
@@ -33,11 +37,11 @@
       const takeBoth = Math.min(both.length, Math.max(minBoth, Math.ceil(pairCount / 2)));
       const picks = both.slice(0, takeBoth).concat(one).concat(both.slice(takeBoth)).slice(0, pairCount);
 
-      const tiles = new Array(n * W), twins = new Array(n * W).fill(-1);
-      const ia = (k) => Math.floor(k / n) * W + (k % n);
-      const ib = (k) => Math.floor(k / n) * W + n + 1 + (k % n);
+      const tiles = new Array(W * H), twins = new Array(W * H).fill(-1);
+      const ia = (k) => (vertical ? k : Math.floor(k / n) * W + (k % n));
+      const ib = (k) => (vertical ? (n + 1) * n + k : Math.floor(k / n) * W + n + 1 + (k % n));
       for (let k = 0; k < n * n; k++) { tiles[ia(k)] = clone(A.tiles[k]); tiles[ib(k)] = clone(B.tiles[k]); }
-      for (let rr = 0; rr < n; rr++) tiles[rr * W + n] = C.make('empty', 0);
+      for (let q = 0; q < n; q++) tiles[vertical ? n * W + q : q * W + n] = C.make('empty', 0);
 
       const sol = [];
       mapA.forEach((p, k) => sol.push({ idx: ia(k), rots: p.rots.slice() }));
@@ -53,7 +57,7 @@
           tiles[y].rot = (mapB.get(k).rots[0] - kk + 8) % 4;
         }
       });
-      const board = { rows: n, cols: W, tiles, solution: sol, twins };
+      const board = { rows: H, cols: W, tiles, solution: sol, twins };
       const par = parOf(board);
       if (par <= 0 || E.trace(board).solved) continue;
       if (!selfCheck(board)) continue;
@@ -117,14 +121,14 @@
     return null;
   }
 
-  MC.Dual = { build, hint, units, clicksFor };
+  MC.Dual = { build, hint, units, clicksFor, preferVertical };
 
   MC.Levels.builders['dual-circuit'] = {
     count() { return LEVELS.length; },
     label(i) { return LEVELS[i][0] + '×' + LEVELS[i][0] + ' ×2'; },
     build(i) {
       const L = LEVELS[i];
-      const d = build(L[0], 110000 + i * 7919, L[1], L[2]);
+      const d = build(L[0], 110000 + i * 7919, L[1], L[2], preferVertical());
       const lv = MC.Levels.finish(d.board, { size: L[0], name: 'Level ' + (i + 1), kind: 'generated', targets: 2 });
       lv.par = d.par;   // par dihitung per satuan putar, bukan per ubin
       return lv;

@@ -26,7 +26,7 @@
       this.root = container; this.board = board; this.els = []; this.angles = [];
       this.cols = board.cols; this.onTile = onTile; this.mask = null;
       container.innerHTML = '';
-      container.className = 'board' + (board.cols > board.rows ? ' wide' : '');   // papan lebar: Dual Circuit
+      container.className = 'board' + (board.cols > board.rows ? ' wide' : board.rows > board.cols ? ' tall' : '');   // papan lebar: Dual Circuit
       container.style.setProperty('--ar', board.cols + ' / ' + board.rows);
       container.style.setProperty('--cols', board.cols);
       container.style.setProperty('--rows', board.rows);

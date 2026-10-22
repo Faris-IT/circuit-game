@@ -64,7 +64,7 @@
       } else if (L.base === 'color') {
         board = MC.Generator.generateColor({ rows: n, cols: n, kind: L.kind, seed, trap: 0.08, blockers: L.blockers });
       } else {
-        const d = MC.Dual.build(n, seed, L.pairs, L.minBoth);
+        const d = MC.Dual.build(n, seed, L.pairs, L.minBoth, MC.Dual.preferVertical());
         board = d.board; par = d.par;
       }
       if (has('unstable')) markPermanent(board, seed);
