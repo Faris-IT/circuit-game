@@ -11,10 +11,10 @@ Game #2 untuk katalog Mufa Games — puzzle logika sirkuit, 1 pemain, HTML5 + CS
 | 2 — Mesin Sirkuit | Koneksi, Source/Target/penghalang, TEST, undo, restart, hint, solver | Selesai |
 | 3 — Mode Awal | Circuit Classic, Circuit Maze, Multi Target, Move Limit | Selesai (4 mode, 53 level) |
 | 4 — Mode Lanjutan | Time Attack, Memory Circuit, Daily Circuit, Color Logic, Unstable Grid | Selesai (9 mode dapat dimainkan) |
-| 5 — Mode Akhir | Dual Circuit, Endless Circuit, Circuit Master | Belum |
+| 5 — Mode Akhir | Dual Circuit, Endless Circuit, Circuit Master | Selesai (12 mode dapat dimainkan) |
 | 6 — Pengujian & Rilis | Pemeriksaan menyeluruh, performa, dokumentasi | Belum |
 
-Skor, bintang, statistik, achievement, penyimpanan, mode latihan, jeda, dan konfirmasi keluar sudah aktif dan dipakai semua mode yang tersedia.
+Skor, bintang, statistik, achievement, penyimpanan, mode latihan, jeda, dan konfirmasi keluar sudah aktif dan dipakai semua 12 mode.
 
 ## Cara bermain
 
@@ -43,8 +43,8 @@ css/   themes, style, layout, board, animations
 js/    config, storage, components, circuit-engine, solver, level-generator,
        level-loader, scoring, achievements, state, board, ui, input, main
 modes/ classic, move-limit, maze, multi-target, time-attack, memory, daily,
-       color-logic, unstable-grid
-data/  levels-classic.js
+       color-logic, unstable-grid, dual-circuit, endless, master
+data/  levels-classic.js, levels-master.js
 ```
 
 ## Mode yang tersedia
@@ -60,8 +60,15 @@ data/  levels-classic.js
 | Daily Circuit | 1 per hari | Seed dari tanggal lokal; hanya hasil pertama yang resmi, latihan ulang tidak mengganti hasil; streak dan waktu terbaik tersimpan |
 | Color Logic | 12 | Source berwarna, Target menuntut warna tepat, Filter menahan warna lain, Mixer (cyan + kuning → hijau), simpang-T sebagai splitter; warna selalu disertai simbol dan pola garis |
 | Unstable Grid | 10 | Tiap 12 dtk satu ubin tidak permanen berubah arah, diumumkan 1 dtk sebelumnya; ubin permanen bertanda cincin cyan; undo dimatikan |
+| Dual Circuit | 10 | Dua papan berdampingan (4×4 atau 5×5), masing-masing punya Source dan Target; kedua sirkuit harus aktif bersamaan. Ubin bertanda ⧉ adalah ubin bersama: memutar satu memutar kembarannya di papan lain. Undo ikut mengembalikan kembarannya |
+| Endless Circuit | sesi tanpa akhir | Puzzle beruntun yang makin sulit; tiap puzzle punya batas gerakan dan batas waktu. 3 nyawa: gerakan atau waktu habis = nyawa berkurang dan streak putus. Poin = 100 × (ukuran − 3) + sisa detik + 25 per streak (maks 250). Undo dan hint dimatikan; rekor: skor, puzzle terbaik, streak terbaik |
+| Circuit Master | 12 | Setiap level menggabungkan 2–3 mekanik (mis. Multi Target + Move Limit, Color Logic + Circuit Maze, Memory + Move Limit, Dual + Move Limit). Level terbuka berurutan; aturan gabungan dijelaskan sebelum level dimulai, tanpa tutorial baru di tengah level |
 
 ## Keputusan desain
+
+- Dual Circuit digabung menjadi satu papan lebar (papan A | kolom kosong | papan B). Kolom kosong memutus aliran antar papan, jadi mesin sirkuit yang sama dipakai tanpa perubahan. Pasangan ubin bersama disimpan di `board.twins`; rotasi awalnya diatur sehingga selalu ada jumlah klik yang membenarkan kedua ubin sekaligus. Hint dan par dihitung per satuan putar (`MC.Dual`), bukan per ubin.
+- Circuit Master memakai hook mode yang sudah ada (Unstable Grid, Memory Circuit) lewat delegasi, dan level boleh menimpa aturan mode lewat `lv.rules` (mis. Undo dimatikan saat ada batas gerakan).
+- Mode sesi (Time Attack, Endless) memakai alur `run`; Endless menambah hook `lose`, `next`, `stars`, `summary`.
 
 - Multi Target dibangun dari pohon sirkuit; solusinya disimpan di `board.solution`, diverifikasi mesin sirkuit, dan dipakai untuk hint serta par.
 

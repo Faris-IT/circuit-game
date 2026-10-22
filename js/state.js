@@ -11,7 +11,8 @@
       if (mode.prepare) mode.prepare();     // mis. menentukan seed sebelum level dibangun
       const lv = MC.Levels.load(modeId, index);
       this.s = {
-        modeId, index, practice: !!practice, rules: mode.rules,
+        modeId, index, practice: !!practice,
+        rules: lv.rules ? Object.assign({}, mode.rules, lv.rules) : mode.rules,   // level (mis. Circuit Master) boleh menimpa aturan
         board: lv.board, size: lv.size, name: lv.name, seed: lv.seed || 0, lv,
         par: lv.par, ideal: lv.ideal, limit: lv.limit || 0, over: false, targets: lv.targets || 1,
         initialRots: lv.board.tiles.map((t) => t.rot),
@@ -28,7 +29,7 @@
     nextPuzzle(lv) {
       const s = this.s;
       Object.assign(s, {
-        board: lv.board, size: lv.size, name: lv.name, lv, par: lv.par, ideal: lv.ideal,
+        board: lv.board, size: lv.size, name: lv.name, lv, par: lv.par, ideal: lv.ideal, limit: lv.limit || 0,
         initialRots: lv.board.tiles.map((t) => t.rot),
         moves: 0, hints: 0, history: [], solved: false, over: false, locked: false, errors: 0, hintIdx: -1,
         running: true, lastTick: performance.now()
@@ -58,6 +59,8 @@
       const t = s.board.tiles[idx];
       if (!t || t.locked || s.solved || s.over || s.locked) return false;
       t.rot = (t.rot + 1) % 4;
+      const tw = s.board.twins ? s.board.twins[idx] : -1;   // ubin bersama (Dual Circuit)
+      if (tw >= 0) { const u = s.board.tiles[tw]; u.rot = (u.rot + 1) % 4; }
       s.history.push(idx);
       s.moves++;
       s.hintIdx = -1;
@@ -70,6 +73,8 @@
       const idx = s.history.pop();
       const t = s.board.tiles[idx];
       t.rot = (t.rot + 3) % 4;
+      const tw = s.board.twins ? s.board.twins[idx] : -1;
+      if (tw >= 0) { const u = s.board.tiles[tw]; u.rot = (u.rot + 3) % 4; }
       if (s.rules.undoRefund) s.moves = Math.max(0, s.moves - 1);
       else if (s.rules.undoCosts) s.moves++; // undo tidak mengembalikan hitungan gerakan
       s.hintIdx = -1;
@@ -96,7 +101,7 @@
     hint() {
       const s = this.s;
       if (!s.rules.hint || s.solved || s.over || s.locked) return null;
-      const h = MC.Solver.hint(s.board);
+      const h = s.board.twins ? MC.Dual.hint(s.board) : MC.Solver.hint(s.board);
       if (!h) return null;
       if (h.idx >= 0) { s.hints++; s.hintIdx = h.idx; }
       return h;

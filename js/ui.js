@@ -176,7 +176,7 @@
       grid.innerHTML = '';
       $('r-title').textContent = r.title || 'Sirkuit Terhubung!';
       const rows = r.run
-        ? [['Puzzle selesai', r.solved], ['Skor', r.score], ['Terbaik', r.best], ['Gerakan', r.moves], ['Durasi', MC.Scoring.formatTime(r.timeMs)]]
+        ? [['Puzzle selesai', r.solved], ['Skor', r.score], ['Terbaik', r.best], ['Gerakan', r.moves], ['Durasi', MC.Scoring.formatTime(r.timeMs)]].concat(r.extraRows || [])
         : [
           ['Waktu', MC.Scoring.formatTime(r.timeMs)], ['Gerakan', r.moves], ['Ideal ≤', r.ideal],
           ['Hint', r.hints], ['Skor', r.practice ? '—' : r.score], ['Terbaik', r.practice ? '—' : r.best]
@@ -218,7 +218,8 @@
         ['Mode favorit', fav], ['Daily streak', MC.Daily.current(st.dailyDays, MC.Daily.key())],
         ['Streak terbaik', st.bestDailyStreak + ' hari'],
         ['Daily tercepat', st.bestDailyMs ? MC.Scoring.formatTime(st.bestDailyMs) : '—'],
-        ['Achievement', Object.keys(MC.Storage.data.achievements).length + '/' + MC.Achievements.list.length]
+        ['Achievement', Object.keys(MC.Storage.data.achievements).length + '/' + MC.Achievements.list.length],
+        ['Endless: puzzle terbaik', st.endlessBestSolved], ['Endless: streak terbaik', st.endlessBestStreak]
       ];
       const grid = $('stats-grid');
       grid.innerHTML = '';

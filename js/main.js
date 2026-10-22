@@ -57,8 +57,9 @@
     const m = MC.Modes[s.modeId];
     if (m.header) $('g-level').textContent = m.header(s);   // mis. nomor puzzle Time Attack
     const legend = $('g-legend');
-    legend.hidden = !m.legend;
-    legend.textContent = m.legend || '';
+    const legendText = m.legendFor ? m.legendFor(s) : m.legend;
+    legend.hidden = !legendText;
+    legend.textContent = legendText || '';
     UI.setHud(s);
     UI.status(s.limit ? 'Batas ' + s.limit + ' gerakan. Putar ubin, lalu tekan TEST CIRCUIT.' : 'Putar ubin, lalu tekan TEST CIRCUIT.');
     if (m.afterMount) m.afterMount(s, Ctl);
@@ -83,6 +84,10 @@
       Game.setRunning(false);
       const done = () => { Storage.data.tutorialSeen[id] = true; Storage.save(); Game.setRunning(true); };
       UI.tutorial(m, done);
+    } else if (m.intro) {
+      // Circuit Master: aturan gabungan dijelaskan sebelum level dimulai (tiap kali), bukan di tengah level.
+      Game.setRunning(false);
+      UI.tutorial({ tutorial: m.intro(s) }, () => Game.setRunning(true));
     }
   }
 
@@ -116,6 +121,8 @@
     }
     if (Game.rotate(idx)) {
       BoardView.rotateTile(idx, 1);
+      const tw = s.board.twins ? s.board.twins[idx] : -1;
+      if (tw >= 0) BoardView.rotateTile(tw, 1);
       BoardView.clearFlow(); BoardView.clearHint();
       if (!s.practice) Storage.data.stats.totalMoves++;
       UI.setHud(s);
@@ -126,13 +133,18 @@
 
   // Mode dengan batas gerakan: peringatan di sisa 2 gerakan, uji otomatis saat gerakan habis.
   function afterMove() {
-    const s = Game.s;
+    const s = Game.s, m = modeOf();
     if (!s.limit || s.solved) return;
     const left = s.limit - s.moves;
     if (left > 0) { if (left <= 2) UI.status('Sisa ' + left + ' gerakan!', 'bad'); return; }
     const trace = Game.test();
     BoardView.flow(trace, reduce());
-    if (trace.solved) { winFlow(trace); return; }
+    if (trace.solved) {
+      if (m.onSolved) m.onSolved(s);
+      if (m.run) runSolved(trace); else winFlow(trace);
+      return;
+    }
+    if (m.run) { BoardView.markErrors(trace.leaks); failPuzzle('moves'); return; }
     s.over = true; s.running = false;
     BoardView.markErrors(trace.leaks);
     UI.status('Gerakan habis!', 'bad');
@@ -157,6 +169,8 @@
     const idx = Game.undo();
     if (idx >= 0) {
       BoardView.rotateTile(idx, -1);
+      const tw = s.board.twins ? s.board.twins[idx] : -1;
+      if (tw >= 0) BoardView.rotateTile(tw, -1);
       BoardView.clearFlow(); BoardView.clearHint();
       UI.setHud(s);
       UI.status(s.rules.undoCosts ? 'Undo dihitung sebagai satu gerakan.' : 'Satu langkah dikembalikan.');
@@ -264,13 +278,32 @@
     }, reduce() ? 250 : 550);
   }
 
+  // Mode sesi dengan nyawa (Endless): puzzle gagal karena gerakan atau waktu habis.
+  function failPuzzle(reason) {
+    if (!inGame()) return;
+    const s = Game.s, m = modeOf();
+    if (s.over || s.locked || !m.lose) return;
+    const left = m.lose(s);
+    s.locked = true;
+    UI.setHud(s);
+    UI.status((reason === 'time' ? 'Waktu puzzle habis!' : 'Gerakan habis!') + ' Nyawa tersisa ' + left + '.', 'bad');
+    if (left <= 0) { flowTimer = setTimeout(endRun, reduce() ? 300 : 900); return; }
+    flowTimer = setTimeout(() => {
+      if (!inGame() || s.over) return;
+      Game.nextPuzzle(m.next(s));
+      mountBoard(s);
+      UI.status('Puzzle baru. Tetap fokus!');
+    }, reduce() ? 300 : 900);
+  }
+
   function endRun() {
     const s = Game.s, m = modeOf(), run = s.run;
     s.over = true; s.running = false; clearTimeout(flowTimer);
-    const stars = run.solved >= 10 ? 3 : run.solved >= 6 ? 2 : run.solved >= 3 ? 1 : 0;
+    const stars = m.stars ? m.stars(run) : (run.solved >= 10 ? 3 : run.solved >= 6 ? 2 : run.solved >= 3 ? 1 : 0);
     const res = {
-      run: true, title: 'Waktu habis!', stars, score: run.score, solved: run.solved, moves: run.moves,
-      timeMs: m.duration, hints: 0, ideal: 0, practice: false, newAch: [], best: run.score, hasNext: false, quick: false
+      run: true, title: m.endTitle || 'Waktu habis!', stars, score: run.score, solved: run.solved, moves: run.moves,
+      extraRows: m.summary ? m.summary(run) : null,
+      timeMs: m.duration || Math.round(s.elapsed), hints: 0, ideal: 0, practice: false, newAch: [], best: run.score, hasNext: false, quick: false
     };
     if (run.solved > 0) {
       m.record(s, res, Storage.data);
@@ -302,7 +335,7 @@
   }
 
   // Jembatan untuk hook mode (hanya yang dibutuhkan mode).
-  const Ctl = { endRun, showLoss, status: (m, k) => UI.status(m, k), reduce };
+  const Ctl = { endRun, failPuzzle, showLoss, status: (m, k) => UI.status(m, k), reduce };
   MC.Ctl = Ctl;
 
   /* ---------- aksi tombol ---------- */

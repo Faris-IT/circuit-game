@@ -26,7 +26,8 @@
       this.root = container; this.board = board; this.els = []; this.angles = [];
       this.cols = board.cols; this.onTile = onTile; this.mask = null;
       container.innerHTML = '';
-      container.className = 'board';
+      container.className = 'board' + (board.cols > board.rows ? ' wide' : '');   // papan lebar: Dual Circuit
+      container.style.setProperty('--ar', board.cols + ' / ' + board.rows);
       container.style.setProperty('--cols', board.cols);
       container.style.setProperty('--rows', board.rows);
       const COL = MC.Config.COLORS;
@@ -36,6 +37,7 @@
         const fixed = t.locked && MC.Components.TYPES[t.type].rotatable; // bisa diputar tetapi dikunci
         let cls = 'tile type-' + t.type + (t.locked ? ' locked' : '') + (fixed ? ' fixed' : '');
         if (t.permanent) cls += ' perm';
+        if (t.shared) cls += ' shared';
         if (t.color) cls += ' tc-' + t.color;
         if (t.type === 'source') cls += ' on' + (t.color ? ' col-' + t.color : '');
         el.className = cls;
@@ -44,6 +46,7 @@
         let html = '<svg viewBox="0 0 100 100" aria-hidden="true">' + SVG[t.type] + (HAS_NOTCH[t.type] ? NOTCH : '') + '</svg>';
         if (t.type === 'mixer') html += '<span class="badge" aria-hidden="true">+</span>';
         else if (t.color && (t.type === 'source' || t.type === 'target' || t.type === 'filter')) html += '<span class="badge" aria-hidden="true">' + COL[t.color].sym + '</span>';
+        else if (t.shared) html += '<span class="badge share" aria-hidden="true">⧉</span>';
         el.innerHTML = html;
         this.angles[i] = t.rot * 90;
         container.appendChild(el);
@@ -51,6 +54,15 @@
         this._apply(i);
         this.label(i);
       });
+      // Dual Circuit: sorot kembaran ubin bersama saat kursor/fokus berada di atasnya.
+      const twinHi = (e) => {
+        this.els.forEach((x) => x.classList.remove('twin-hi'));
+        const b = e.target.closest && e.target.closest('.tile');
+        const tw = b && this.board.twins ? this.board.twins[+b.dataset.idx] : -1;
+        if (tw >= 0) this.els[tw].classList.add('twin-hi');
+      };
+      container.onmouseover = twinHi; container.onfocusin = twinHi;
+      container.onmouseleave = () => this.els.forEach((x) => x.classList.remove('twin-hi'));
       container.onclick = (e) => {
         const b = e.target.closest('.tile');
         if (b && this.onTile) this.onTile(+b.dataset.idx);
@@ -68,7 +80,7 @@
       const t = this.board.tiles[i];
       const r = Math.floor(i / this.cols) + 1, c = (i % this.cols) + 1;
       const hidden = this.mask && this.mask.has(i);
-      const base = 'Baris ' + r + ', kolom ' + c + ': ' + (hidden ? 'tersembunyi' : MC.Components.describe(t)) + (t.permanent ? ', permanen' : '');
+      const base = 'Baris ' + r + ', kolom ' + c + ': ' + (hidden ? 'tersembunyi' : MC.Components.describe(t)) + (t.permanent ? ', permanen' : '') + (t.shared ? ', ubin bersama' : '');
       this.els[i].setAttribute('aria-label', t.locked ? base + ' (terkunci)' : base + '. Tekan untuk memutar.');
     },
 

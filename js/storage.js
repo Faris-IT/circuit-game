@@ -10,7 +10,7 @@
       stats: {
         levelsCompleted: 0, totalTimeMs: 0, totalMoves: 0, hintsUsed: 0,
         modePlays: {}, modeBest: {}, dailyStreak: 0, bestDailyStreak: 0,
-        dailyDays: [], endlessSolved: 0, bestDailyMs: 0
+        dailyDays: [], endlessSolved: 0, bestDailyMs: 0, endlessBestSolved: 0, endlessBestStreak: 0
       },
       progress: {},
       achievements: {},
@@ -25,7 +25,7 @@
     if (isObj(raw.settings)) d.settings.reduceMotion = raw.settings.reduceMotion === true;
     if (isObj(raw.stats)) {
       const s = raw.stats;
-      ['levelsCompleted', 'totalTimeMs', 'totalMoves', 'hintsUsed', 'dailyStreak', 'bestDailyStreak', 'endlessSolved', 'bestDailyMs']
+      ['levelsCompleted', 'totalTimeMs', 'totalMoves', 'hintsUsed', 'dailyStreak', 'bestDailyStreak', 'endlessSolved', 'bestDailyMs', 'endlessBestSolved', 'endlessBestStreak']
         .forEach((k) => { d.stats[k] = num(s[k]); });
       ['modePlays', 'modeBest'].forEach((k) => {
         if (isObj(s[k])) for (const m in s[k]) d.stats[k][m] = num(s[k][m]);
